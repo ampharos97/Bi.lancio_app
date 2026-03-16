@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -5,7 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d0d0d">
+<meta name="theme-color" content="#0d0d0d" id="themeColorMeta">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Bi·lancio</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -17,6 +20,14 @@
   --red:#c8432a;--green:#2a7a4a;--gold:#b8932a;--blue:#4a7ab8;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+/* LIGHT MODE */
+body.light{
+  --bg:#f4f1ec;--bg2:#ffffff;--bg3:#eae6df;--bd:#ddd8d0;--bd2:#c8c2b8;
+  --text:#1a1a1a;--muted:#999;--muted2:#ccc;
+}
+/* THEME TOGGLE */
+.theme-btn{background:none;border:1px solid var(--bd);border-radius:7px;color:var(--muted);cursor:pointer;padding:.28rem .5rem;font-size:.82rem;line-height:1;transition:all .12s;flex-shrink:0;touch-action:manipulation}
+.theme-btn:hover,.theme-btn:active{background:var(--bg3);color:var(--text)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
 input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.4)}
@@ -390,6 +401,7 @@ select option{background:var(--bg2)}
         <div class="mh-sync-dot" id="mhSyncDot"></div>
         <span id="mhSyncLabel">sync</span>
       </button>
+      <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" title="Cambia tema">🌙</button>
     </div>
   </div>
 
@@ -429,6 +441,10 @@ select option{background:var(--bg2)}
         <button class="sb-sync-btn" onclick="manualSync()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="11" height="11" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           Sincronizza ora
+        </button>
+        <button class="sb-btn" onclick="toggleTheme()" id="themeBtnSidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="11" height="11" stroke-width="1.8"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <span id="themeLabelSidebar">Tema chiaro</span>
         </button>
         <button class="sb-btn" onclick="document.getElementById('importInput').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importa JSON
@@ -499,6 +515,7 @@ select option{background:var(--bg2)}
         <div class="page-title">Movimenti <span class="page-period" id="txPeriod"></span></div>
         <div class="tx-toolbar">
           <button class="filter-btn active" onclick="setFilter('all',this)">Tutti</button>
+          <button class="filter-btn" onclick="setFilter('real',this)">Reali</button>
           <button class="filter-btn" onclick="setFilter('expense',this)">Uscite</button>
           <button class="filter-btn" onclick="setFilter('income',this)">Entrate</button>
           <button class="filter-btn" onclick="setFilter('neutral',this)">Neutri</button>
@@ -1025,7 +1042,8 @@ function renderTxList(append=false){
   const q=(document.getElementById('txSearch')?.value||'').toLowerCase().trim();
   const lmw=document.getElementById('loadMoreWrap');
   let mt=periodTxs().sort((a,b)=>new Date(b.date)-new Date(a.date)||(b.id>a.id?1:-1));
-  if(txFilter==='expense')mt=mt.filter(t=>t.type==='expense'&&!isNeut(t.category));
+  if(txFilter==='real')mt=mt.filter(t=>!isNeut(t.category));
+  else if(txFilter==='expense')mt=mt.filter(t=>t.type==='expense'&&!isNeut(t.category));
   else if(txFilter==='income')mt=mt.filter(t=>t.type==='income');
   else if(txFilter==='neutral')mt=mt.filter(t=>isNeut(t.category));
   if(srcFilter==='Banca')mt=mt.filter(t=>t.source==='Banca');
@@ -1263,7 +1281,34 @@ function applyMobileLayout(){
 window.addEventListener('resize',applyMobileLayout);
 applyMobileLayout();
 
+// ── TEMA ──────────────────────────────────────────────────────────────────────
+function applyTheme(light){
+  document.body.classList.toggle('light', light);
+  const btn=document.getElementById('themeBtn');
+  const btnSide=document.getElementById('themeBtnSidebar');
+  const lbl=document.getElementById('themeLabelSidebar');
+  const meta=document.getElementById('themeColorMeta');
+  if(btn) btn.textContent = light ? '☀️' : '🌙';
+  if(lbl) lbl.textContent = light ? 'Tema scuro' : 'Tema chiaro';
+  if(btnSide){
+    const svg=btnSide.querySelector('svg');
+    if(svg) svg.innerHTML = light
+      ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+      : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+  }
+  if(meta) meta.content = light ? '#f4f1ec' : '#0d0d0d';
+  // Ridisegna i grafici con i colori giusti
+  if(typeof renderAll === 'function') renderAll();
+}
+function toggleTheme(){
+  const isLight = !document.body.classList.contains('light');
+  localStorage.setItem('bilancio_theme', isLight ? 'light' : 'dark');
+  applyTheme(isLight);
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
+// Applica tema salvato subito (prima del render per evitare flash)
+applyTheme(localStorage.getItem('bilancio_theme') === 'light');
 initApp();
 </script>
 </body>
